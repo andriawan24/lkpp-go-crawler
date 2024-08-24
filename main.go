@@ -1,64 +1,33 @@
 package main
 
+import (
+	"context"
+	"fmt"
+	"lexicon/lkpp-go-crawler/common"
+	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
+)
+
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load .env: %v\n", err)
+		os.Exit(1)
+	}
 
-	// var products []models.Product
+	context := context.Background()
+	dbpool, err := pgxpool.New(context, os.Getenv("DATABASE_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to create a new pool: %v\n", err)
+		os.Exit(1)
+	}
+	defer dbpool.Close()
 
-	// c := colly.NewCollector(
-	// 	colly.AllowedDomains("www.scrapingcourse.com"),
-	// )
-
-	// c.OnRequest(func(r *colly.Request) {
-	// 	fmt.Println("Requesting to visit", r.URL)
-	// })
-
-	// c.OnError(func(r *colly.Response, err error) {
-	// 	fmt.Println("Error", err)
-	// })
-
-	// c.OnHTML("li.product", func(e *colly.HTMLElement) {
-	// 	product := models.Product{}
-
-	// 	product.Url = e.ChildAttr("a", "href")
-	// 	product.Name = e.ChildText(".product-name")
-	// 	product.Price = e.ChildText(".price")
-	// 	product.Image = e.ChildAttr("img", "src")
-
-	// 	products = append(products, product)
-	// })
-
-	// c.OnScraped(func(r *colly.Response) {
-	// 	fmt.Println(r.Request.URL, "scraped!")
-
-	// 	file, err := os.Create("products.csv")
-	// 	if err != nil {
-	// 		log.Fatalln("Failed to create output CSV", err)
-	// 	}
-
-	// 	defer file.Close()
-
-	// 	writer := csv.NewWriter(file)
-
-	// 	headers := []string{
-	// 		"Url",
-	// 		"Image",
-	// 		"Name",
-	// 		"Price",
-	// 	}
-	// 	writer.Write(headers)
-
-	// 	for _, product := range products {
-	// 		record := []string{
-	// 			product.Url,
-	// 			product.Image,
-	// 			product.Name,
-	// 			product.Price,
-	// 		}
-	// 		writer.Write(record)
-	// 	}
-
-	// 	defer writer.Flush()
-	// })
-
-	// c.Visit("https://www.scrapingcourse.com/ecommerce")
+	err = common.SetDatabase(dbpool)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to set database: %v\n", err)
+		os.Exit(1)
+	}
 }
