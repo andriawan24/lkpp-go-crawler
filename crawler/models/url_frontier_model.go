@@ -14,16 +14,26 @@ const (
 )
 
 type UrlFrontier struct {
-	ID        int
-	Url       string
-	Crawler   string
-	Status    int8
-	CreatedAt carbon.DateTime
-	UpdatedAt carbon.DateTime
+	ID        int             `json:"id"`
+	Url       string          `json:"url"`
+	Crawler   string          `json:"crawler"`
+	Status    int8            `json:"status"`
+	CreatedAt carbon.DateTime `json:"created_at"`
+	UpdatedAt carbon.DateTime `json:"updated_at"`
 }
 
 func UpsertUrlFrontier(ctx context.Context, tx pgx.Tx, urlFrontier []UrlFrontier) error {
-	return nil
+	sql := "INSERT INTO url_frontiers (url, crawler) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = EXCLUDED.url, crawler = EXCLUDED.crawler, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at"
+
+	batch := &pgx.Batch{}
+
+	for _, url := range urlFrontier {
+		batch.Queue(sql, url.Url, url.Crawler)
+	}
+
+	res := tx.SendBatch(ctx, batch)
+
+	return res.Close()
 }
 
 func GetUrlFrontiers() []UrlFrontier {

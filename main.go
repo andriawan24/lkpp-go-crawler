@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
+	"lexicon/lkpp-go-crawler/crawler"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,6 +29,12 @@ func main() {
 	err = common.SetDatabase(dbpool)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to set database: %v\n", err)
+		os.Exit(1)
+	}
+
+	err = crawler.StartCrawlingUrl()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to crawl url: %v\n", err)
 		os.Exit(1)
 	}
 }
