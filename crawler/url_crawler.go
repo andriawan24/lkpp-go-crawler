@@ -15,7 +15,7 @@ import (
 func StartCrawlingUrl() error {
 	var urlFrontiers []models.UrlFrontier
 
-	var endpoints = []string{"daftar-hitam", "non-aktif", "penundaan", "batal"}
+	var endpoints = []string{"", "/non-aktif", "/penundaan", "/batal"}
 
 	for _, endpoint := range endpoints {
 		lastPage := getLastPage(endpoint)
@@ -27,7 +27,7 @@ func StartCrawlingUrl() error {
 
 			c.OnHTML("table.celled", func(h *colly.HTMLElement) {
 				h.ForEach("a.button-detail", func(i int, h *colly.HTMLElement) {
-					url := fmt.Sprintf("https://%s/%s#%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))
+					url := fmt.Sprintf("https://%s/daftar-hitam%s#%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))
 					id := sha256.Sum256([]byte(url))
 
 					urlFrontiers = append(urlFrontiers, models.UrlFrontier{
@@ -40,10 +40,10 @@ func StartCrawlingUrl() error {
 			})
 
 			c.OnScraped(func(r *colly.Response) {
-				fmt.Println("Successfully scraped page", currentPage, "for endpoint", endpoint)
+				fmt.Println("Successfully scrape page", currentPage, "for endpoint", endpoint)
 			})
 
-			c.Visit(fmt.Sprintf("https://%s/%s?page=%d", common.CRAWLER_DOMAIN, endpoint, currentPage))
+			c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s?page=%d", common.CRAWLER_DOMAIN, endpoint, currentPage))
 		}
 	}
 
@@ -72,6 +72,6 @@ func getLastPage(endpoint string) int {
 	c.OnScraped(func(r *colly.Response) {
 		fmt.Println("Finished get last page", lastPage)
 	})
-	c.Visit(fmt.Sprintf("https://www.inaproc.id/%s", endpoint))
+	c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s", common.CRAWLER_DOMAIN, endpoint))
 	return lastPage
 }
