@@ -1,6 +1,8 @@
 package crawler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
 	"lexicon/lkpp-go-crawler/crawler/models"
@@ -13,24 +15,36 @@ import (
 func StartCrawlingUrl() error {
 	var urlFrontiers []models.UrlFrontier
 
-	lastPage := getLastPage()
+	var endpoints = []string{"daftar-hitam", "non-aktif", "penundaan", "batal"}
 
-	for currentPage := 1; currentPage <= lastPage; currentPage++ {
-		c := colly.NewCollector(
-			colly.AllowedDomains(common.CRAWLER_DOMAIN),
-		)
-		c.OnHTML("table.celled", func(h *colly.HTMLElement) {
-			h.ForEach("a.button-detail", func(i int, h *colly.HTMLElement) {
-				urlFrontiers = append(urlFrontiers, models.UrlFrontier{
-					Url:     fmt.Sprintf("https://%s/daftar-hitam/%s", common.CRAWLER_DOMAIN, h.Attr("data-id")),
-					Crawler: common.CRAWLER_NAME,
+	for _, endpoint := range endpoints {
+		lastPage := getLastPage(endpoint)
+
+		for currentPage := 1; currentPage <= lastPage; currentPage++ {
+			c := colly.NewCollector(
+				colly.AllowedDomains(common.CRAWLER_DOMAIN),
+			)
+
+			c.OnHTML("table.celled", func(h *colly.HTMLElement) {
+				h.ForEach("a.button-detail", func(i int, h *colly.HTMLElement) {
+					url := fmt.Sprintf("https://%s/%s#%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))
+					id := sha256.Sum256([]byte(url))
+
+					urlFrontiers = append(urlFrontiers, models.UrlFrontier{
+						ID:      hex.EncodeToString(id[:]),
+						Url:     url,
+						Crawler: common.CRAWLER_NAME,
+						Domain:  common.CRAWLER_DOMAIN,
+					})
 				})
 			})
-		})
-		c.OnScraped(func(r *colly.Response) {
-			fmt.Println("Successfully scraped page", currentPage)
-		})
-		c.Visit(fmt.Sprintf("https://%s/daftar-hitam?page=%d", common.CRAWLER_DOMAIN, currentPage))
+
+			c.OnScraped(func(r *colly.Response) {
+				fmt.Println("Successfully scraped page", currentPage, "for endpoint", endpoint)
+			})
+
+			c.Visit(fmt.Sprintf("https://%s/%s?page=%d", common.CRAWLER_DOMAIN, endpoint, currentPage))
+		}
 	}
 
 	err := services.UpsetUrl(urlFrontiers)
@@ -41,7 +55,7 @@ func StartCrawlingUrl() error {
 	return nil
 }
 
-func getLastPage() int {
+func getLastPage(endpoint string) int {
 	c := colly.NewCollector(
 		colly.AllowedDomains(common.CRAWLER_DOMAIN),
 	)
@@ -56,8 +70,8 @@ func getLastPage() int {
 		}
 	})
 	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("Finished get last page")
+		fmt.Println("Finished get last page", lastPage)
 	})
-	c.Visit("https://www.inaproc.id/daftar-hitam")
+	c.Visit(fmt.Sprintf("https://www.inaproc.id/%s", endpoint))
 	return lastPage
 }

@@ -37,4 +37,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to crawl url: %v\n", err)
 		os.Exit(1)
 	}
+
+	// scraper.StartScraper()
 }
