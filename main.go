@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
-	"lexicon/lkpp-go-crawler/crawler"
+	"lexicon/lkpp-go-crawler/scraper"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,11 +32,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = crawler.StartCrawlingUrl()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to crawl url: %v\n", err)
-		os.Exit(1)
-	}
+	// err = crawler.StartCrawlingUrl()
+	// if err != nil {
+	// 	fmt.Fprintf(os.Stderr, "Failed to crawl url: %v\n", err)
+	// 	os.Exit(1)
+	// }
 
-	// scraper.StartScraper()
+	scraper.StartScraper()
+	os.Exit(0)
 }

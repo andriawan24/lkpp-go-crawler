@@ -39,12 +39,10 @@ func StartCrawlingUrl() error {
 				})
 			})
 
-			c.OnScraped(func(r *colly.Response) {
-				fmt.Println("Successfully scrape page", currentPage, "for endpoint", endpoint)
-			})
-
 			c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s?page=%d", common.CRAWLER_DOMAIN, endpoint, currentPage))
 		}
+
+		fmt.Println("Successfully crawled endpoint", endpoint)
 	}
 
 	err := services.UpsetUrl(urlFrontiers)
@@ -60,13 +58,15 @@ func getLastPage(endpoint string) int {
 		colly.AllowedDomains(common.CRAWLER_DOMAIN),
 	)
 
-	lastPage := 0
+	lastPage := 1
 	c.OnHTML(".pagination", func(h *colly.HTMLElement) {
 		var err error
 		childTexts := h.ChildTexts("a.item")
-		lastPage, err = strconv.Atoi(childTexts[len(childTexts)-1])
-		if err != nil {
-			fmt.Println("Error")
+		if len(childTexts) > 0 {
+			lastPage, err = strconv.Atoi(childTexts[len(childTexts)-1])
+			if err != nil {
+				fmt.Println("Error")
+			}
 		}
 	})
 	c.OnScraped(func(r *colly.Response) {
