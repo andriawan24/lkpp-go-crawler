@@ -38,9 +38,9 @@ func StartScraper() error {
 		return err
 	}
 
-	// for _, url := range unscraped_urls {
-	queue.AddURL(unscraped_urls[0].Url)
-	// }
+	for _, url := range unscraped_urls {
+		queue.AddURL(url.Url)
+	}
 
 	queue.Run(scraper)
 
@@ -50,6 +50,8 @@ func StartScraper() error {
 }
 
 func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
+	var currentUrl string
+
 	newExtraction := models.Extraction{
 		Metadata: models.Metadata{},
 		Language: "id",
@@ -70,56 +72,81 @@ func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
 	c.SetRequestTimeout(time.Minute * 2)
 
 	c.OnHTML("table.definition > tbody > tr", func(h *colly.HTMLElement) {
-		text := strings.TrimSpace(h.ChildText("td:nth-child(2)"))
-		switch h.Index {
-		case 0:
-			id := sha256.Sum256([]byte(text))
-			newExtraction.Id = hex.EncodeToString(id[:])
-			newExtraction.Metadata.ID = hex.EncodeToString(id[:])
-			newExtraction.Metadata.Title = text
-		case 1:
-			newExtraction.Metadata.NPWP = text
-		case 2:
-			newExtraction.Metadata.Address = text
-		case 3:
-			newExtraction.Metadata.City = text
-		case 4:
-			newExtraction.Metadata.Province = text
+		if !strings.Contains(currentUrl, "non-aktif") {
+			text := strings.TrimSpace(h.ChildText("td:nth-child(2)"))
+			switch h.Index {
+			case 0:
+				id := sha256.Sum256([]byte(text))
+				newExtraction.Id = hex.EncodeToString(id[:])
+				newExtraction.Metadata.ID = hex.EncodeToString(id[:])
+				newExtraction.Metadata.Title = text
+			case 1:
+				newExtraction.Metadata.NPWP = text
+			case 2:
+				newExtraction.Metadata.Address = text
+			case 3:
+				newExtraction.Metadata.City = text
+			case 4:
+				newExtraction.Metadata.Province = text
+			}
 		}
 	})
 
 	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(1)", func(h *colly.HTMLElement) {
-		h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
-			if i == 0 {
-				cleanedText := strings.TrimSpace(s.Text())
-				newExtraction.Metadata.Number = cleanedText
-			} else if i == 1 {
-				rule := strings.TrimSpace(s.Find(".header").Text())
-				description := strings.TrimSpace(s.Find(".description").Text())
-				newExtraction.Metadata.Rule = rule
-				newExtraction.Metadata.Description = description
-			}
-		})
+		if !strings.Contains(currentUrl, "non-aktif") {
+			h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
+				if i == 0 {
+					cleanedText := strings.TrimSpace(s.Text())
+					newExtraction.Metadata.Number = cleanedText
+				} else if i == 1 {
+					rule := strings.TrimSpace(s.Find(".header").Text())
+					description := strings.TrimSpace(s.Find(".description").Text())
+					newExtraction.Metadata.Rule = rule
+					newExtraction.Metadata.Description = description
+				}
+			})
+		}
 	})
 
 	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(2)", func(h *colly.HTMLElement) {
-		h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
-			if i == 0 {
-				startDate := strings.TrimSpace(s.Text())
-				newExtraction.Metadata.StartDate = startDate
-			} else if i == 2 {
-				endDate := strings.TrimSpace(s.Text())
-				newExtraction.Metadata.EndDate = endDate
-			}
-		})
+		if !strings.Contains(currentUrl, "non-aktif") {
+			h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
+				if i == 0 {
+					startDate := strings.TrimSpace(s.Text())
+					newExtraction.Metadata.StartDate = startDate
+				} else if i == 2 {
+					endDate := strings.TrimSpace(s.Text())
+					newExtraction.Metadata.EndDate = endDate
+				}
+			})
+		}
 	})
 
 	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(3)", func(h *colly.HTMLElement) {
-		newExtraction.Metadata.PublishedDate = h.Text
+		if !strings.Contains(currentUrl, "non-aktif") {
+			newExtraction.Metadata.PublishedDate = h.Text
+		}
+	})
+
+	c.OnHTML("table.ui.table.small.celled.very.padded tbody tr", func(e *colly.HTMLElement) {
+		fmt.Println(currentUrl)
+		if strings.Contains(currentUrl, "non-aktif") {
+			id := strings.Split(currentUrl, "#")
+			fmt.Println(id)
+			if strings.Contains(e.ChildAttr("a.button-detail", "data-id"), id[len(id)-1]) {
+				title := e.ChildText("td:nth-child(1) h5 a")
+				address := e.ChildText("td:nth-child(2) .ui.list .item .content .header")
+				status := e.ChildText("td:nth-child(3) table tbody tr:nth-child(1) td:nth-child(2)")
+				newExtraction.Metadata.Title = title
+				newExtraction.Metadata.Address = address
+				newExtraction.Metadata.Status = status
+			}
+		}
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("[visiting]:", r.URL.String())
+		currentUrl = r.URL.String()
+		fmt.Println("[visiting]:", currentUrl)
 		queue.AddRequest(r)
 	})
 
@@ -131,21 +158,21 @@ func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
 		newExtraction.Id = hex.EncodeToString(frontierId[:])
 		newExtraction.UrlFrontierId = hex.EncodeToString(frontierId[:])
 
-		fmt.Println("[started]: Upserting extraction", newExtraction)
+		fmt.Println("[started]: Upserting extraction", newExtraction.RawPageLink)
 		err := scraper_service.UpsertExtraction(newExtraction)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Println("[finished] Upserting extraction", newExtraction.Id)
+		fmt.Println("[finished] Upserting extraction", newExtraction.RawPageLink)
 
-		fmt.Println("[started]: Upserting crawler", newExtraction)
+		fmt.Println("[started]: Upserting crawler", newExtraction.RawPageLink)
 		err = services.UpdateUrlFrontierStatus(newExtraction.Id, crawler_model.URL_STATUS_CRAWLED)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Println("[finished] Upserting crawler", newExtraction.Id)
+		fmt.Println("[finished] Upserting crawler", newExtraction.RawPageLink)
 	})
 
 	return c, nil
