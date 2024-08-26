@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
+	"lexicon/lkpp-go-crawler/crawler"
 	"lexicon/lkpp-go-crawler/scraper"
+	"log"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -32,12 +35,57 @@ func main() {
 		os.Exit(1)
 	}
 
-	// err = crawler.StartCrawlingUrl()
-	// if err != nil {
-	// 	fmt.Fprintf(os.Stderr, "Failed to crawl url: %v\n", err)
-	// 	os.Exit(1)
-	// }
+	rootCommand := &cobra.Command{
+		Use:   "lexicon-lkpp-crawler",
+		Short: "Crawl LKPP Blacklist of Indonesia",
+		Long:  "Crawl LKPP Blacklist of Indonesia",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println("[Started]: Start URL Crawler")
+			crawler.StartCrawlingUrl()
+			fmt.Println("[Started]: Start Web Scraper")
+			scraper.StartScraper()
+			fmt.Println("[Finished]: Finished Crawling URL and Web Scraping, happy coding!")
+		},
+	}
 
-	scraper.StartScraper()
-	os.Exit(0)
+	rootCommand.AddCommand(crawlerCommand())
+	rootCommand.AddCommand(scraperCommand())
+
+	err = scraperCommand().Execute()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func crawlerCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "crawler",
+		Short: "URL Crawler for detail page of LKPP Blacklist of Indonesia website",
+		Long:  "URL Crawler for detail page of LKPP Blacklist of Indonesia website",
+		Run: func(cmd *cobra.Command, args []string) {
+			err := crawler.StartCrawlingUrl()
+			if err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		},
+	}
+}
+
+func scraperCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "scraper",
+		Short: "URL Scraper for detail page of LKPP Blacklist of Indonesia website",
+		Long:  "URL Scraper for detail page of LKPP Blacklist of Indonesia website",
+		Run: func(cmd *cobra.Command, args []string) {
+			err := scraper.StartScraper()
+			if err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		},
+	}
 }

@@ -1,46 +1,59 @@
 package scraper
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
 	"lexicon/lkpp-go-crawler/crawler/services"
-	"log"
+	"lexicon/lkpp-go-crawler/scraper/models"
+	"os"
 	"strings"
 	"time"
 
+	crawler_model "lexicon/lkpp-go-crawler/crawler/models"
+	scraper_service "lexicon/lkpp-go-crawler/scraper/services"
+
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/queue"
+	"gopkg.in/guregu/null.v4"
 )
 
-func StartScraper() {
+func StartScraper() error {
 	unscraped_urls, err := services.GetUnscrapedUrl()
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
-	fmt.Println("Unscraped urls", len(unscraped_urls))
+	fmt.Println("[started]: Unscraped urls", len(unscraped_urls))
 
 	queue, err := queue.New(2, &queue.InMemoryQueueStorage{MaxSize: 10000})
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	scraper, err := buildScraper(queue)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
-	if len(unscraped_urls) > 0 {
-		queue.AddURL(unscraped_urls[0].Url)
-	}
+	// for _, url := range unscraped_urls {
+	queue.AddURL(unscraped_urls[0].Url)
+	// }
 
 	queue.Run(scraper)
 
 	scraper.Wait()
+
+	return nil
 }
 
 func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
-	// newExtraction := models.Extraction{}
+	newExtraction := models.Extraction{
+		Metadata: models.Metadata{},
+		Language: "id",
+	}
 
 	c := colly.NewCollector(
 		colly.AllowedDomains(common.CRAWLER_DOMAIN),
@@ -56,42 +69,83 @@ func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
 
 	c.SetRequestTimeout(time.Minute * 2)
 
-	c.OnHTML("div.large.modal > .content > table.definition", func(h *colly.HTMLElement) {
-		retryCount := 0
-		maxRetries := 5
-		var text string
-		for retryCount < maxRetries {
-			// Check if the popup is visible
-			text = strings.TrimSpace(h.ChildText("#nama-penyedia"))
-			fmt.Println("Current value", text)
-			if text != "-" {
-				fmt.Println("Popup content:", text)
-				break
-			}
-			retryCount++
-			fmt.Printf("Retrying... Attempt %d of %d\n", retryCount, maxRetries)
-			time.Sleep(5 * time.Second) // Wait for 2 seconds before retrying
+	c.OnHTML("table.definition > tbody > tr", func(h *colly.HTMLElement) {
+		text := strings.TrimSpace(h.ChildText("td:nth-child(2)"))
+		switch h.Index {
+		case 0:
+			id := sha256.Sum256([]byte(text))
+			newExtraction.Id = hex.EncodeToString(id[:])
+			newExtraction.Metadata.ID = hex.EncodeToString(id[:])
+			newExtraction.Metadata.Title = text
+		case 1:
+			newExtraction.Metadata.NPWP = text
+		case 2:
+			newExtraction.Metadata.Address = text
+		case 3:
+			newExtraction.Metadata.City = text
+		case 4:
+			newExtraction.Metadata.Province = text
 		}
+	})
 
-		if text == "-" {
-			fmt.Println("Popup content not found after retries")
-		}
-		// text := strings.TrimSpace(h.ChildText("td"))
-		// if len(text) > 0 {
-		// 	fmt.Println(text)
-		// }
+	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(1)", func(h *colly.HTMLElement) {
+		h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
+			if i == 0 {
+				cleanedText := strings.TrimSpace(s.Text())
+				newExtraction.Metadata.Number = cleanedText
+			} else if i == 1 {
+				rule := strings.TrimSpace(s.Find(".header").Text())
+				description := strings.TrimSpace(s.Find(".description").Text())
+				newExtraction.Metadata.Rule = rule
+				newExtraction.Metadata.Description = description
+			}
+		})
+	})
+
+	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(2)", func(h *colly.HTMLElement) {
+		h.DOM.Contents().Each(func(i int, s *goquery.Selection) {
+			if i == 0 {
+				startDate := strings.TrimSpace(s.Text())
+				newExtraction.Metadata.StartDate = startDate
+			} else if i == 2 {
+				endDate := strings.TrimSpace(s.Text())
+				newExtraction.Metadata.EndDate = endDate
+			}
+		})
+	})
+
+	c.OnHTML("table.table-list > tbody > tr:nth-child(1) > td:nth-child(3)", func(h *colly.HTMLElement) {
+		newExtraction.Metadata.PublishedDate = h.Text
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		// *newExtraction.RawPageLink = r.URL.String()
-		fmt.Println("Visiting", r.URL.String())
+		fmt.Println("[visiting]:", r.URL.String())
 		queue.AddRequest(r)
 	})
 
 	c.OnScraped(func(r *colly.Response) {
-		// frontierId := sha256.Sum256([]byte(r.Request.URL.String()))
-		// newExtraction.UrlFrontierId = hex.EncodeToString(frontierId[:])
-		// newExtraction.Id = hex.EncodeToString(frontierId[:])
+		rawPageUrl := r.Request.URL.String()
+		frontierId := sha256.Sum256([]byte(rawPageUrl))
+
+		newExtraction.RawPageLink = null.StringFrom(rawPageUrl)
+		newExtraction.Id = hex.EncodeToString(frontierId[:])
+		newExtraction.UrlFrontierId = hex.EncodeToString(frontierId[:])
+
+		fmt.Println("[started]: Upserting extraction", newExtraction)
+		err := scraper_service.UpsertExtraction(newExtraction)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("[finished] Upserting extraction", newExtraction.Id)
+
+		fmt.Println("[started]: Upserting crawler", newExtraction)
+		err = services.UpdateUrlFrontierStatus(newExtraction.Id, crawler_model.URL_STATUS_CRAWLED)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("[finished] Upserting crawler", newExtraction.Id)
 	})
 
 	return c, nil

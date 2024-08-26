@@ -19,5 +19,7 @@ func UpsertExtraction(extraction models.Extraction) error {
 		return err
 	}
 
+	tx.Commit(context)
+
 	return nil
 }

@@ -15,7 +15,8 @@ import (
 func StartCrawlingUrl() error {
 	var urlFrontiers []models.UrlFrontier
 
-	var endpoints = []string{"", "/non-aktif", "/penundaan", "/batal"}
+	// var endpoints = []string{"", "/non-aktif", "/penundaan", "/batal"}
+	var endpoints = []string{""}
 
 	for _, endpoint := range endpoints {
 		lastPage := getLastPage(endpoint)
@@ -27,7 +28,7 @@ func StartCrawlingUrl() error {
 
 			c.OnHTML("table.celled", func(h *colly.HTMLElement) {
 				h.ForEach("a.button-detail", func(i int, h *colly.HTMLElement) {
-					url := fmt.Sprintf("https://%s/daftar-hitam%s#%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))
+					url := fmt.Sprintf("https://%s/daftar-hitam%s/%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))
 					id := sha256.Sum256([]byte(url))
 
 					urlFrontiers = append(urlFrontiers, models.UrlFrontier{
@@ -39,10 +40,14 @@ func StartCrawlingUrl() error {
 				})
 			})
 
+			c.OnRequest(func(r *colly.Request) {
+				fmt.Println("[started]: Visiting URL", r.URL.String())
+			})
+
 			c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s?page=%d", common.CRAWLER_DOMAIN, endpoint, currentPage))
 		}
 
-		fmt.Println("Successfully crawled endpoint", endpoint)
+		fmt.Println("[finished]: Successfully crawled endpoint", endpoint)
 	}
 
 	err := services.UpsetUrl(urlFrontiers)
@@ -69,9 +74,16 @@ func getLastPage(endpoint string) int {
 			}
 		}
 	})
-	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("Finished get last page", lastPage)
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("[started]: Visiting", r.URL.String())
 	})
+
+	c.OnScraped(func(r *colly.Response) {
+		fmt.Println("[finished]: Get last page", lastPage)
+	})
+
 	c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s", common.CRAWLER_DOMAIN, endpoint))
+
 	return lastPage
 }
