@@ -119,6 +119,14 @@ func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
 					newExtraction.Metadata.EndDate = endDate
 				}
 			})
+
+			if strings.Contains(currentUrl, "penundaan") {
+				newExtraction.Metadata.Status = "pending"
+			} else if strings.Contains(currentUrl, "batal") {
+				newExtraction.Metadata.Status = "cancelled"
+			} else {
+				newExtraction.Metadata.Status = "active"
+			}
 		}
 	})
 
@@ -129,17 +137,26 @@ func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
 	})
 
 	c.OnHTML("table.ui.table.small.celled.very.padded tbody tr", func(e *colly.HTMLElement) {
-		fmt.Println(currentUrl)
 		if strings.Contains(currentUrl, "non-aktif") {
 			id := strings.Split(currentUrl, "#")
-			fmt.Println(id)
 			if strings.Contains(e.ChildAttr("a.button-detail", "data-id"), id[len(id)-1]) {
-				title := e.ChildText("td:nth-child(1) h5 a")
-				address := e.ChildText("td:nth-child(2) .ui.list .item .content .header")
-				status := e.ChildText("td:nth-child(3) table tbody tr:nth-child(1) td:nth-child(2)")
+				title := strings.TrimSpace(e.ChildText("td:nth-child(1) h5 a"))
+				number := strings.TrimSpace(e.ChildText("td:nth-child(1) div.npwp strong"))
+				city := strings.TrimSpace(e.ChildText("td:nth-child(2) .ui.list .item .content .header"))
+				address := strings.TrimSpace(e.ChildText("td:nth-child(2) .ui.list .item .content .description"))
+				endDate := strings.TrimSpace(e.ChildText("td:nth-child(3) table tbody tr:nth-child(2) td:nth-child(2)"))
+				startDate := strings.Split(strings.TrimSpace(e.ChildText("td:nth-child(3) table tbody tr:nth-child(3) td:nth-child(2)")), "s/d")
+
+				id := sha256.Sum256([]byte(title))
+				newExtraction.Metadata.ID = hex.EncodeToString(id[:])
 				newExtraction.Metadata.Title = title
+				newExtraction.Metadata.Number = number
 				newExtraction.Metadata.Address = address
-				newExtraction.Metadata.Status = status
+				newExtraction.Metadata.City = city
+				newExtraction.Metadata.EndDate = endDate
+				newExtraction.Metadata.StartDate = strings.TrimRight(startDate[0], "\n\r")
+				newExtraction.Metadata.EndDate = strings.Trim(startDate[1], "\n\r")
+				newExtraction.Metadata.Status = "not-active"
 			}
 		}
 	})
