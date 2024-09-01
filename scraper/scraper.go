@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -15,11 +16,19 @@ import (
 	scraper_service "lexicon/lkpp-go-crawler/scraper/services"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-rod/rod"
+	"github.com/chromedp/chromedp"
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/queue"
 	"gopkg.in/guregu/null.v4"
 )
+
+type TableData struct {
+	SKPenetapan     string
+	Rules           string
+	Description     string
+	MasaBerlaku     string
+	TanggalBerakhir string
+}
 
 func StartScraper() error {
 	unscraped_urls, err := services.GetUnscrapedUrl()
@@ -30,8 +39,50 @@ func StartScraper() error {
 	fmt.Println("[started]: Unscraped urls", len(unscraped_urls))
 
 	url := unscraped_urls[0].Url
-	page := rod.New().MustConnect().MustPage(url)
-	page.MustWaitStable().MustScreenshot("test.png")
+
+	ctx, cancel := chromedp.NewRemoteAllocator(context.Background(), "http://localhost:9222")
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(ctx)
+	defer cancel()
+
+	var name string
+	var npwp string
+	var address string
+	var province string
+	var city string
+	var tableRows []TableData
+
+	err = chromedp.Run(
+		ctx,
+		chromedp.Navigate(url),
+		chromedp.WaitVisible(`div.ui.modal.large.modal-blacklist-detail`),
+		chromedp.Text("td#nama-penyedia", &name),
+		chromedp.Text("td#npwp", &npwp),
+		chromedp.Text("td#alamat", &address),
+		chromedp.Text("td#propinsi", &province),
+		chromedp.Text("td#kabupaten-kota", &city),
+		chromedp.Evaluate(`Array.from(document.querySelectorAll('#injunctions tbody tr')).map(row => ({
+			SKPenetapan: row.children[0].innerText.trim(),
+			Rules: row.children[1].querySelector('.header').innerText.trim(),
+			Description: row.children[1].querySelector('.description').innerText.trim(),
+			MasaBerlaku: row.children[2].querySelector('tbody tr:nth-child(1) td:nth-child(2)').innerText.trim(),
+			TanggalBerakhir: row.children[2].querySelector('tbody tr:nth-child(2) td:nth-child(2)').innerText.trim()
+		}))`, &tableRows),
+	)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("URL", url)
+	fmt.Println("Nama penyedia", name)
+	fmt.Println("NPWP", npwp)
+	fmt.Println("Alamat", strings.TrimSpace(address))
+	fmt.Println("Provinsi", province)
+	fmt.Println("Kabupaten/Kota", city)
+	for index, data := range tableRows {
+		fmt.Println(index+1, data)
+	}
 
 	return nil
 

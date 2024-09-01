@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.1
+	github.com/chromedp/chromedp v0.10.0
 	github.com/gocolly/colly/v2 v2.1.0
 	github.com/golang-module/carbon v1.7.3
 	github.com/golang-module/carbon/v2 v2.3.12
@@ -14,11 +15,14 @@ require (
 )
 
 require (
-	github.com/ysmood/fetchup v0.2.3 // indirect
-	github.com/ysmood/goob v0.4.0 // indirect
-	github.com/ysmood/got v0.40.0 // indirect
-	github.com/ysmood/gson v0.7.3 // indirect
-	github.com/ysmood/leakless v0.9.0 // indirect
+	github.com/chromedp/cdproto v0.0.0-20240810084448-b931b754e476 // indirect
+	github.com/chromedp/sysutil v1.0.0 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.4.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 )
 
 require (
@@ -26,7 +30,6 @@ require (
 	github.com/antchfx/htmlquery v1.2.3 // indirect
 	github.com/antchfx/xmlquery v1.2.4 // indirect
 	github.com/antchfx/xpath v1.1.8 // indirect
-	github.com/go-rod/rod v0.116.2
 	github.com/gobuffalo/envy v1.7.0 // indirect
 	github.com/gobuffalo/packd v0.3.0 // indirect
 	github.com/gobuffalo/packr v1.30.1 // indirect
