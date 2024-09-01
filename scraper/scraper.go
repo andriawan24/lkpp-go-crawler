@@ -15,6 +15,7 @@ import (
 	scraper_service "lexicon/lkpp-go-crawler/scraper/services"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-rod/rod"
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/queue"
 	"gopkg.in/guregu/null.v4"
@@ -28,25 +29,31 @@ func StartScraper() error {
 
 	fmt.Println("[started]: Unscraped urls", len(unscraped_urls))
 
-	queue, err := queue.New(2, &queue.InMemoryQueueStorage{MaxSize: 10000})
-	if err != nil {
-		return err
-	}
-
-	scraper, err := buildScraper(queue)
-	if err != nil {
-		return err
-	}
-
-	for _, url := range unscraped_urls {
-		queue.AddURL(url.Url)
-	}
-
-	queue.Run(scraper)
-
-	scraper.Wait()
+	url := unscraped_urls[0].Url
+	page := rod.New().MustConnect().MustPage(url)
+	page.MustWaitStable().MustScreenshot("test.png")
 
 	return nil
+
+	// queue, err := queue.New(2, &queue.InMemoryQueueStorage{MaxSize: 10000})
+	// if err != nil {
+	// 	return err
+	// }
+
+	// scraper, err := buildScraper(queue)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// for _, url := range unscraped_urls {
+	// 	queue.AddURL(url.Url)
+	// }
+
+	// queue.Run(scraper)
+
+	// scraper.Wait()
+
+	// return nil
 }
 
 func buildScraper(queue *queue.Queue) (*colly.Collector, error) {
