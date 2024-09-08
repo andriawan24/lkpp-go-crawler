@@ -48,15 +48,11 @@ func StartCrawlingUrl() error {
 	}
 
 	var endpoints = []string{"", "/penundaan", "/batal"}
-
 	for _, endpoint := range endpoints {
 		lastPage := getLastPage(endpoint)
 
 		for currentPage := 1; currentPage <= lastPage; currentPage++ {
-			c := colly.NewCollector(
-				colly.AllowedDomains(common.CRAWLER_DOMAIN),
-			)
-
+			c := colly.NewCollector(colly.AllowedDomains(common.CRAWLER_DOMAIN))
 			c.OnHTML("table.celled", func(h *colly.HTMLElement) {
 				h.ForEach("a.button-detail", func(i int, h *colly.HTMLElement) {
 					url := fmt.Sprintf("https://%s/daftar-hitam%s/%s", common.CRAWLER_DOMAIN, endpoint, h.Attr("data-id"))

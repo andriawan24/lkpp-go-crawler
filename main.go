@@ -51,7 +51,7 @@ func main() {
 	rootCommand.AddCommand(crawlerCommand())
 	rootCommand.AddCommand(scraperCommand())
 
-	err = crawlerCommand().Execute()
+	err = scraperCommand().Execute()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

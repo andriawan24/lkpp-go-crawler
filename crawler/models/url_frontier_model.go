@@ -25,7 +25,7 @@ type UrlFrontier struct {
 }
 
 func UpsertUrlFrontier(ctx context.Context, tx pgx.Tx, urlFrontier []UrlFrontier) error {
-	sql := "INSERT INTO url_frontiers (id, url, domain, crawler) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET url = EXCLUDED.url, crawler = EXCLUDED.crawler, domain = EXCLUDED.domain, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at"
+	sql := "INSERT INTO url_frontier (id, url, domain, crawler) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET url = EXCLUDED.url, crawler = EXCLUDED.crawler, domain = EXCLUDED.domain, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at"
 
 	batch := &pgx.Batch{}
 
@@ -39,7 +39,7 @@ func UpsertUrlFrontier(ctx context.Context, tx pgx.Tx, urlFrontier []UrlFrontier
 }
 
 func UpdateUrlFrontierStatus(ctx context.Context, tx pgx.Tx, urlId string, status int) error {
-	sql := "UPDATE url_frontiers SET status = $1, updated_at=$2 WHERE id = $3"
+	sql := "UPDATE url_frontier SET status = $1, updated_at = $2 WHERE id = $3"
 
 	res, err := tx.Exec(ctx, sql, status, carbon.Now().ToIso8601String(), urlId)
 	if err != nil {
@@ -55,7 +55,7 @@ func UpdateUrlFrontierStatus(ctx context.Context, tx pgx.Tx, urlId string, statu
 }
 
 func GetUrlFrontiersUnscraped(ctx context.Context, tx pgx.Tx) ([]UrlFrontier, error) {
-	query := "SELECT * FROM url_frontiers WHERE crawler = $1 AND status = $2"
+	query := "SELECT * FROM url_frontier WHERE crawler = $1 AND status = $2"
 
 	rows, err := tx.Query(ctx, query, common.CRAWLER_NAME, URL_STATUS_READY)
 	if err != nil {
