@@ -6,6 +6,8 @@ type Metadata struct {
 	Address            string              `json:"address"`
 	City               string              `json:"city"`
 	Status             string              `json:"status"`
+	NPWP               string              `json:"npwp"`
+	Province           string              `json:"province"`
 	Injunctions        []Injunction        `json:"injunctions"`
 	ProcurementDetails []ProcurementDetail `json:"procurement_details"`
 }
@@ -27,4 +29,6 @@ type ProcurementDetail struct {
 	Ceiling         string `json:"ceiling"`
 	Unit            string `json:"unit"`
 	FiscalYear      string `json:"fiscal_year"`
+	InstitutionArea string `json:"institution_area"`
+	EstimatedPrice  string `json:"estimated_price"`
 }
