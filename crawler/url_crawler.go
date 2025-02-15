@@ -7,7 +7,9 @@ import (
 	"lexicon/lkpp-go-crawler/common"
 	"lexicon/lkpp-go-crawler/crawler/models"
 	"lexicon/lkpp-go-crawler/crawler/services"
+	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gocolly/colly/v2"
 )
@@ -90,16 +92,22 @@ func getLastPage(endpoint string) int {
 		colly.AllowedDomains(common.CRAWLER_DOMAIN),
 	)
 
-	lastPage := 1
-	c.OnHTML(".pagination", func(h *colly.HTMLElement) {
-		var err error
-		childTexts := h.ChildTexts("a.item")
-		if len(childTexts) > 0 {
-			lastPage, err = strconv.Atoi(childTexts[len(childTexts)-1])
-			if err != nil {
-				fmt.Println("Error")
+	lastPage := 0
+
+	c.OnHTML("button.Pagination_button__m7YBp", func(h *colly.HTMLElement) {
+
+		text := strings.TrimSpace(h.Text)
+
+		num, err := strconv.Atoi(text)
+		if err == nil {
+			if num > lastPage {
+				lastPage = num
 			}
 		}
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		log.Println("Error:", err)
 	})
 
 	c.OnRequest(func(r *colly.Request) {
@@ -110,7 +118,7 @@ func getLastPage(endpoint string) int {
 		fmt.Println("[finished]: Get last page", lastPage)
 	})
 
-	c.Visit(fmt.Sprintf("https://%s/daftar-hitam%s", common.CRAWLER_DOMAIN, endpoint))
+	c.Visit(fmt.Sprintf("https://%s/%s", common.CRAWLER_DOMAIN, endpoint))
 
 	return lastPage
 }
