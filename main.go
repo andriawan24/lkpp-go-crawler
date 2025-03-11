@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"lexicon/lkpp-go-crawler/common"
 	"lexicon/lkpp-go-crawler/crawler"
+	"lexicon/lkpp-go-crawler/repository"
 	"lexicon/lkpp-go-crawler/scraper"
 	"log"
 	"os"
@@ -35,6 +36,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	query := repository.New(dbpool)
+
+	err = common.SetQuery(query)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to set query")
+		os.Exit(1)
+	}
+
 	rootCommand := &cobra.Command{
 		Use:   "lexicon-lkpp-crawler",
 		Short: "Crawl LKPP Blacklist of Indonesia",
@@ -51,7 +60,7 @@ func main() {
 	rootCommand.AddCommand(crawlerCommand())
 	rootCommand.AddCommand(scraperCommand())
 
-	err = scraperCommand().Execute()
+	err = crawlerCommand().Execute()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

@@ -1,25 +1,19 @@
 package services
 
-import (
-	"context"
-	"lexicon/lkpp-go-crawler/common"
-	"lexicon/lkpp-go-crawler/scraper/models"
-)
+// func UpsertExtraction(extraction models.Extraction) error {
+// 	context := context.Background()
 
-func UpsertExtraction(extraction models.Extraction) error {
-	context := context.Background()
+// 	tx, err := common.Pool.Begin(context)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	tx, err := common.Pool.Begin(context)
-	if err != nil {
-		return err
-	}
+// 	err = models.UpsertExtraction(context, tx, extraction)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	err = models.UpsertExtraction(context, tx, extraction)
-	if err != nil {
-		return err
-	}
+// 	tx.Commit(context)
 
-	tx.Commit(context)
-
-	return nil
-}
+// 	return nil
+// }
