@@ -3,10 +3,13 @@ package services
 import (
 	"context"
 	"lexicon/lkpp-go-crawler/common"
-	"lexicon/lkpp-go-crawler/scraper/models"
+	"lexicon/lkpp-go-crawler/repository"
+
+	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 )
 
-func UpsertExtraction(extraction models.Extraction) error {
+func UpsertExtraction(ctx context.Context, extractions []repository.Extraction) error {
 	context := context.Background()
 
 	tx, err := common.Pool.Begin(context)
@@ -14,12 +17,28 @@ func UpsertExtraction(extraction models.Extraction) error {
 		return err
 	}
 
-	err = models.UpsertExtraction(context, tx, extraction)
-	if err != nil {
-		return err
-	}
+	queries := common.Query.WithTx(tx)
 
-	tx.Commit(context)
+	br := queries.UpsertExtraction(ctx, lo.Map(extractions, func(extraction repository.Extraction, _ int) repository.UpsertExtractionParams {
+		return repository.UpsertExtractionParams{
+			ID:            extraction.ID,
+			UrlFrontierID: extraction.UrlFrontierID,
+			SiteContent:   extraction.SiteContent,
+			ArtifactLink:  extraction.ArtifactLink,
+			RawPageLink:   extraction.RawPageLink,
+			Language:      extraction.Language,
+			PageHash:      extraction.PageHash,
+			Metadata:      extraction.Metadata,
+			CreatedAt:     extraction.CreatedAt,
+			UpdatedAt:     extraction.UpdatedAt,
+		}
+	}))
 
-	return nil
+	br.Exec(func(int, error) {
+		if err != nil {
+			log.Error().Err(err).Msg("Error upserting extractions")
+		}
+	})
+
+	return tx.Commit(ctx)
 }

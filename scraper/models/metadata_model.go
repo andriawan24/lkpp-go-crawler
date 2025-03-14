@@ -8,7 +8,7 @@ type Metadata struct {
 	Status             string              `json:"status"`
 	NPWP               string              `json:"npwp"`
 	Province           string              `json:"province"`
-	Injunctions        []Injunction        `json:"injunctions"`
+	Injunction         Injunction          `json:"injunction"`
 	ProcurementDetails []ProcurementDetail `json:"procurement_details"`
 }
 
