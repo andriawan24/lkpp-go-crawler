@@ -52,7 +52,7 @@ func main() {
 			fmt.Println("[Started]: Start URL Crawler")
 			crawler.StartCrawlingUrl()
 			fmt.Println("[Started]: Start Web Scraper")
-			scraper.StartScraper()
+
 			fmt.Println("[Finished]: Finished Crawling URL and Web Scraping, happy coding!")
 		},
 	}
@@ -60,7 +60,7 @@ func main() {
 	rootCommand.AddCommand(crawlerCommand())
 	rootCommand.AddCommand(scraperCommand())
 
-	err = crawlerCommand().Execute()
+	err = scraperCommand().Execute()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -89,7 +89,9 @@ func scraperCommand() *cobra.Command {
 		Short: "URL Scraper for detail page of LKPP Blacklist of Indonesia website",
 		Long:  "URL Scraper for detail page of LKPP Blacklist of Indonesia website",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := scraper.StartScraper()
+			sc := scraper.ScraperImpl{}
+			sc.Setup()
+			err := sc.Scrape(context.Background())
 			if err != nil {
 				log.Fatal(err)
 				os.Exit(1)
