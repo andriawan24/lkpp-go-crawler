@@ -11,6 +11,7 @@ import (
 	"lexicon/lkpp-go-crawler/scraper/models"
 	scraperServices "lexicon/lkpp-go-crawler/scraper/services"
 	"strconv"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/rs/zerolog/log"
@@ -41,7 +42,7 @@ func (c *ScraperImpl) Scrape(ctx context.Context) error {
 
 	var unscrappedUrlFrontiers []repository.UrlFrontier
 
-	unscrappedUrlFrontiers, err := services.GetUnscrappedUrlFrontiers(ctx, 100)
+	unscrappedUrlFrontiers, err := services.GetUnscrappedUrlFrontiers(ctx, 10)
 	if err != nil {
 		return err
 	}
@@ -60,43 +61,45 @@ func (c *ScraperImpl) Scrape(ctx context.Context) error {
 
 		log.Debug().Msg("[Started] scraping url " + pageUrl)
 
-		inputs, err := page.Elements("input")
+		inputs, err := page.Timeout(5 * time.Second).Elements("input")
 		if err != nil {
-			return err
+			fmt.Println("[Process] Failed to get inputs", err.Error())
 		}
 
-		textareas, err := page.Elements("textarea")
+		textareas, err := page.Timeout(5 * time.Second).Elements("textarea")
 		if err != nil {
-			return err
+			fmt.Println("[Process] Failed to get inputs", err.Error())
 		}
 
-		rule, err := page.Element("div.select__single-value")
+		rule, err := page.Timeout(5 * time.Second).Element("div.select__single-value")
 		if err != nil {
-			return err
+			fmt.Println("[Process] Failed to get inputs", err.Error())
 		}
 
-		metadata.Injunction.Rule = rule.MustText()
+		if rule != nil {
+			metadata.Injunction.Rule = rule.Timeout(5 * time.Second).MustText()
+		}
 
 		for index, textarea := range textareas {
-			text, err := textarea.Text()
-
+			text, err := textarea.Timeout(5 * time.Second).Text()
 			if err != nil {
-				return err
+				fmt.Println("[Process] Failed to get inputs", err.Error())
 			}
 
-			switch index {
-			case 0: // Alamat
-				metadata.Address = text
-			case 2: // Deskripsi
-				metadata.Injunction.Description = text
+			if text != "" {
+				switch index {
+				case 0: // Alamat
+					metadata.Address = text
+				case 2: // Deskripsi
+					metadata.Injunction.Description = text
+				}
 			}
 		}
 
 		for index, input := range inputs {
-			text, err := input.Attribute("value")
-
+			text, err := input.Timeout(5 * time.Second).Attribute("value")
 			if err != nil {
-				return err
+				fmt.Println("[Process] Failed to get inputs", err.Error())
 			}
 
 			if text != nil {
@@ -117,39 +120,44 @@ func (c *ScraperImpl) Scrape(ctx context.Context) error {
 			}
 		}
 
-		detailsDiv, err := page.Elements("dl > div")
+		detailsDiv, err := page.Timeout(5 * time.Second).Elements("dl > div")
 		if err != nil {
-			return err
+			fmt.Println("[Process] Failed to get inputs", err.Error())
 		}
 
 		var details []models.ProcurementDetail
 		detail := models.ProcurementDetail{}
 
 		for index, text := range detailsDiv {
-			t, err := text.Element("dd")
+			t, err := text.Timeout(5 * time.Second).Element("dd")
 			if err != nil {
-				return err
+				fmt.Println("[Process] Failed to get inputs", err.Error())
 			}
 
-			switch index {
-			case 0: // Tender ID
-				detail.TenderID = t.MustText()
-			case 1: // Nama Paket
-				detail.PackageName = t.MustText()
-			case 2: // Jenis Pengadaan
-				detail.ProcurementType = t.MustText()
-			case 3: // K/L/PD
-				detail.InstitutionArea = t.MustText()
-			case 4: // Satuan Kerja
-				detail.Unit = t.MustText()
-			case 5: // HPS
-				detail.EstimatedPrice = t.MustText()
-			case 6: // Pagu
-				detail.Ceiling = t.MustText()
-			case 7: // Tahun Anggaran
-				detail.FiscalYear = t.MustText()
+			if t != nil {
+				switch index {
+				case 0: // Tender ID
+					detail.TenderID, err = t.Timeout(5 * time.Second).Text()
+				case 1: // Nama Paket
+					detail.PackageName, err = t.Timeout(5 * time.Second).Text()
+				case 2: // Jenis Pengadaan
+					detail.ProcurementType, err = t.Timeout(5 * time.Second).Text()
+				case 3: // K/L/PD
+					detail.InstitutionArea, err = t.Timeout(5 * time.Second).Text()
+				case 4: // Satuan Kerja
+					detail.Unit, err = t.Timeout(5 * time.Second).Text()
+				case 5: // HPS
+					detail.EstimatedPrice, err = t.Timeout(5 * time.Second).Text()
+				case 6: // Pagu
+					detail.Ceiling, err = t.Timeout(5 * time.Second).Text()
+				case 7: // Tahun Anggaran
+					detail.FiscalYear, err = t.Timeout(5 * time.Second).Text()
+				}
 			}
 
+			if err != nil {
+				fmt.Println("[Process] Failed to get inputs", err.Error())
+			}
 		}
 
 		// Add details to metadata
@@ -184,7 +192,7 @@ func (c *ScraperImpl) Scrape(ctx context.Context) error {
 		}),
 	)
 
-	log.Debug().Msg("[Finished] successfully scrape " + strconv.Itoa(len(unscrappedUrlFrontiers)) + " data")
+	log.Debug().Msg("[Finished] successfully scrape " + strconv.Itoa(len(unscrappedUrlFrontiers)) + " data ")
 
 	return err
 }
